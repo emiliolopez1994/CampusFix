@@ -1,0 +1,23 @@
+# Angular / Node
+node_modules/
+dist/
+.angular/
+
+# ASP.NET Core
+**/bin/
+**/obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno
+.env
+.env.*
+
+# Logs
+*.log
