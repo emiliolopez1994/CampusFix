@@ -1,41 +1,22 @@
+using CampusFix.Api.Data;
+using CampusFix.Api.Services;
+using CampusFix.Api.Middlewares;
+using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddControllers();
 builder.Services.AddOpenApi();
-
+var connectionString = builder.Configuration.GetConnectionString("CampusFixConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("Configure ConnectionStrings:CampusFixConnection mediante dotnet user-secrets. Consulte README.md.");
+builder.Services.AddDbContext<CampusFixDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddScoped<ReporteService>();
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+app.UseMiddleware<ExceptionMiddleware>();
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.MapControllers();
+app.MapGet("/api/health", async (CampusFixDbContext db) =>
+    await db.Database.CanConnectAsync() ? Results.Ok(new { estado = "Conectado", baseDatos = "PostgreSQL" }) : Results.StatusCode(503));
+app.MapFallbackToFile("index.html");
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

@@ -1,0 +1,10 @@
+{
+  "name": "campusfix-browser-tests",
+  "private": true,
+  "scripts": {
+    "test": "node ui-check.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

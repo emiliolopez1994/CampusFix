@@ -1,6 +1,37 @@
-@CampusFix.Api_HostAddress = http://localhost:5137
+@base = http://localhost:5137
 
-GET {{CampusFix.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Conexion PostgreSQL
+GET {{base}}/api/health
 
-###
+### Personas
+GET {{base}}/api/usuarios
+
+### Crear persona (usar el ID devuelto)
+POST {{base}}/api/usuarios
+Content-Type: application/json
+
+{"nombre":"Carlos","correo":"carlos@example.edu"}
+
+### Crear reporte (reemplazar reportadoPorId por el ID real)
+POST {{base}}/api/reportes
+Content-Type: application/json
+
+{"problema":"Proyector no funciona","ubicacion":"Aula 204","descripcion":"No enciende","prioridad":3,"reportadoPorId":1}
+
+### Listar
+GET {{base}}/api/reportes
+
+### Detalle (reemplazar ID)
+GET {{base}}/api/reportes/1
+
+### Transicion valida desde Reportado
+PATCH {{base}}/api/reportes/1/estado
+Content-Type: application/json
+
+{"estado":2}
+
+### Debe rechazar con 409 si aun esta en En revision
+PATCH {{base}}/api/reportes/1/estado
+Content-Type: application/json
+
+{"estado":4}

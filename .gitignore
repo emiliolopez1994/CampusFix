@@ -21,3 +21,13 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Frontend compilado para presentacion local
+backend/CampusFix.Api/wwwroot/
+tests/browser/artifacts/
+
+# Configuracion local de herramientas
+.claude/
+.config/
+.mcp.json
+ui-ux-pro-max-skill/
