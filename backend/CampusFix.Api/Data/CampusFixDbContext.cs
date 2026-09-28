@@ -28,6 +28,12 @@ public class CampusFixDbContext : DbContext
             .HasForeignKey(r => r.ReportadoPorId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Soft Delete:
+        // Los reportes archivados permanecen en PostgreSQL,
+        // pero no aparecen en las consultas normales del sistema.
+        modelBuilder.Entity<Reporte>()
+            .HasQueryFilter(r => !r.Eliminado);
+
         modelBuilder.Entity<HistorialEstado>()
             .HasOne(h => h.Reporte)
             .WithMany(r => r.HistorialEstados)

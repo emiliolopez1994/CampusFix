@@ -1,46 +1,22 @@
 using CampusFix.Api.Data;
+using CampusFix.Api.Services;
+using CampusFix.Api.Middlewares;
 using Microsoft.EntityFrameworkCore;
-
 var builder = WebApplication.CreateBuilder(args);
-
-// Agregar controladores
 builder.Services.AddControllers();
-
-// Configuración de OpenAPI
 builder.Services.AddOpenApi();
-
-// Obtener la conexión a PostgreSQL
-var connectionString =
-    builder.Configuration.GetConnectionString("CampusFixConnection");
-
+var connectionString = builder.Configuration.GetConnectionString("CampusFixConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
-{
-    throw new InvalidOperationException(
-        "No se encontró la cadena de conexión CampusFixConnection.");
-}
-
-// Configurar Entity Framework Core con PostgreSQL
-builder.Services.AddDbContext<CampusFixDbContext>(options =>
-    options.UseNpgsql(connectionString));
-
+    throw new InvalidOperationException("Configure ConnectionStrings:CampusFixConnection mediante dotnet user-secrets. Consulte README.md.");
+builder.Services.AddDbContext<CampusFixDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddScoped<ReporteService>();
 var app = builder.Build();
-
-// OpenAPI disponible en desarrollo
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-// Habilitar controladores de la API
+app.UseMiddleware<ExceptionMiddleware>();
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapControllers();
-
-// Ruta sencilla para comprobar que CampusFix funciona
-app.MapGet("/", () => new
-{
-    aplicacion = "CampusFix API",
-    estado = "Backend funcionando"
-});
-
+app.MapGet("/api/health", async (CampusFixDbContext db) =>
+    await db.Database.CanConnectAsync() ? Results.Ok(new { estado = "Conectado", baseDatos = "PostgreSQL" }) : Results.StatusCode(503));
+app.MapFallbackToFile("index.html");
 app.Run();

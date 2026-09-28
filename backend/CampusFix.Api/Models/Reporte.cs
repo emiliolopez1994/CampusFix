@@ -22,6 +22,19 @@ public class Reporte
 
     public DateTime FechaActualizacion { get; set; } = DateTime.UtcNow;
 
+    // Solución documentada:
+    // Registra qué acción permitió resolver el incidente.
+    // Posteriormente podrá reutilizarse en CampusFix Knowledge.
+    public string? Solucion { get; set; }
+
+    public DateTime? FechaSolucion { get; set; }
+
+    // Soft Delete:
+    // El reporte se archiva sin eliminar físicamente el registro de PostgreSQL.
+    public bool Eliminado { get; set; } = false;
+
+    public DateTime? FechaEliminacion { get; set; }
+
     public ICollection<HistorialEstado> HistorialEstados { get; set; }
         = new List<HistorialEstado>();
 }
