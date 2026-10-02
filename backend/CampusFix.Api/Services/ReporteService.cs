@@ -3,14 +3,26 @@ using CampusFix.Api.DTOs;
 using CampusFix.Api.Models;
 using CampusFix.Api.Mappings;
 using CampusFix.Api.Validators;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampusFix.Api.Services;
 
-public class ReporteService(CampusFixDbContext db)
+public class ReporteService
 {
+    private readonly CampusFixDbContext _db;
+    private readonly UserManager<Usuario> _userManager;
+
+    public ReporteService(
+        CampusFixDbContext db,
+        UserManager<Usuario> userManager)
+    {
+        _db = db;
+        _userManager = userManager;
+    }
+
     private IQueryable<Reporte> Consulta =>
-        db.Reportes
+        _db.Reportes
             .Include(r => r.ReportadoPor)
             .Include(r => r.HistorialEstados);
 
@@ -22,11 +34,14 @@ public class ReporteService(CampusFixDbContext db)
         .Select(r => r.ToDto())
         .ToArray();
 
-    public async Task<ReporteDto> Obtener(int id, CancellationToken ct) =>
+    public async Task<ReporteDto> Obtener(
+        int id,
+        CancellationToken ct) =>
         (await Consulta
             .AsNoTracking()
             .SingleOrDefaultAsync(r => r.Id == id, ct)
-        ?? throw new KeyNotFoundException("Reporte no encontrado."))
+        ?? throw new KeyNotFoundException(
+            "Reporte no encontrado."))
         .ToDto();
 
     public async Task<ReporteDto> Guardar(
@@ -36,21 +51,28 @@ public class ReporteService(CampusFixDbContext db)
     {
         ReporteValidator.Validar(d);
 
-        var usuario = await db.Usuarios.FindAsync([d.ReportadoPorId], ct)
-            ?? throw new ArgumentException("El reportante no existe.");
+        var usuario = await _userManager.FindByIdAsync(
+            d.ReportadoPorId.ToString());
+
+        if (usuario is null)
+            throw new ArgumentException(
+                "El reportante no existe.");
 
         var r = id.HasValue
-            ? await Consulta.SingleOrDefaultAsync(r => r.Id == id, ct)
-                ?? throw new KeyNotFoundException("Reporte no encontrado.")
+            ? await Consulta.SingleOrDefaultAsync(
+                r => r.Id == id,
+                ct)
+                ?? throw new KeyNotFoundException(
+                    "Reporte no encontrado.")
             : new Reporte();
 
         r.Aplicar(d);
         r.ReportadoPor = usuario;
 
         if (!id.HasValue)
-            db.Reportes.Add(r);
+            _db.Reportes.Add(r);
 
-        await db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
 
         return r.ToDto();
     }
@@ -62,29 +84,34 @@ public class ReporteService(CampusFixDbContext db)
     {
         // El bloqueo de fila serializa transiciones simultáneas
         // del mismo reporte.
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await using var tx =
+            await _db.Database.BeginTransactionAsync(ct);
 
-        var filas = await db.Reportes
+        var filas = await _db.Reportes
             .FromSqlInterpolated(
                 $"SELECT * FROM \"Reportes\" WHERE \"Id\" = {id} FOR UPDATE")
             .ToListAsync(ct);
 
         var r = filas.SingleOrDefault()
-            ?? throw new KeyNotFoundException("Reporte no encontrado.");
+            ?? throw new KeyNotFoundException(
+                "Reporte no encontrado.");
 
-        ReporteValidator.ValidarTransicion(r.Estado, siguiente);
+        ReporteValidator.ValidarTransicion(
+            r.Estado,
+            siguiente);
 
-        db.HistorialEstados.Add(new HistorialEstado
-        {
-            ReporteId = id,
-            EstadoAnterior = r.Estado,
-            EstadoNuevo = siguiente
-        });
+        _db.HistorialEstados.Add(
+            new HistorialEstado
+            {
+                ReporteId = id,
+                EstadoAnterior = r.Estado,
+                EstadoNuevo = siguiente
+            });
 
         r.Estado = siguiente;
         r.FechaActualizacion = DateTime.UtcNow;
 
-        await db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
         return await Obtener(id, ct);
@@ -100,34 +127,44 @@ public class ReporteService(CampusFixDbContext db)
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(d.Solucion))
-            throw new ArgumentException("La solución es obligatoria.");
+            throw new ArgumentException(
+                "La solución es obligatoria.");
 
         var r = await Consulta
-            .SingleOrDefaultAsync(r => r.Id == id, ct)
-            ?? throw new KeyNotFoundException("Reporte no encontrado.");
+            .SingleOrDefaultAsync(
+                r => r.Id == id,
+                ct)
+            ?? throw new KeyNotFoundException(
+                "Reporte no encontrado.");
 
         r.Solucion = d.Solucion.Trim();
         r.FechaSolucion = DateTime.UtcNow;
         r.FechaActualizacion = DateTime.UtcNow;
 
-        await db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
 
         return r.ToDto();
     }
 
     // Soft Delete:
     // El reporte no se elimina físicamente de PostgreSQL.
-    // Se marca como archivado y deja de aparecer en las consultas normales.
-    public async Task Archivar(int id, CancellationToken ct)
+    // Se marca como archivado y deja de aparecer
+    // en las consultas normales.
+    public async Task Archivar(
+        int id,
+        CancellationToken ct)
     {
-        var r = await db.Reportes
-            .SingleOrDefaultAsync(r => r.Id == id, ct)
-            ?? throw new KeyNotFoundException("Reporte no encontrado.");
+        var r = await _db.Reportes
+            .SingleOrDefaultAsync(
+                r => r.Id == id,
+                ct)
+            ?? throw new KeyNotFoundException(
+                "Reporte no encontrado.");
 
         r.Eliminado = true;
         r.FechaEliminacion = DateTime.UtcNow;
         r.FechaActualizacion = DateTime.UtcNow;
 
-        await db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
     }
 }

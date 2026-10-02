@@ -1,12 +1,11 @@
+using Microsoft.AspNetCore.Identity;
+
 namespace CampusFix.Api.Models;
 
-public class Usuario
+public class Usuario : IdentityUser<int>
 {
-    public int Id { get; set; }
-
     public string Nombre { get; set; } = string.Empty;
 
-    public string Correo { get; set; } = string.Empty;
-
-    public ICollection<Reporte> Reportes { get; set; } = new List<Reporte>();
+    public ICollection<Reporte> Reportes { get; set; }
+        = new List<Reporte>();
 }

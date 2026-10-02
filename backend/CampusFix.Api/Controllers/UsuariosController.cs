@@ -1,21 +1,39 @@
-using CampusFix.Api.Data;
+using CampusFix.Api.Authorization;
 using CampusFix.Api.DTOs;
 using CampusFix.Api.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+
 namespace CampusFix.Api.Controllers;
-[ApiController, Route("api/usuarios")]
-public class UsuariosController(CampusFixDbContext db) : ControllerBase
+
+[ApiController]
+[Route("api/usuarios")]
+[Authorize(Roles = Roles.Administrador)]
+public class UsuariosController : ControllerBase
 {
-    [HttpGet] public async Task<IActionResult> Listar(CancellationToken ct) => Ok(await db.Usuarios.AsNoTracking().OrderBy(u => u.Nombre).Select(u => new UsuarioDto(u.Id, u.Nombre, u.Correo)).ToArrayAsync(ct));
-    [HttpPost] public async Task<IActionResult> Crear(UsuarioEntrada d, CancellationToken ct)
+    private readonly UserManager<Usuario> _userManager;
+
+    public UsuariosController(
+        UserManager<Usuario> userManager)
     {
-        if (string.IsNullOrWhiteSpace(d.Nombre)) throw new ArgumentException("El nombre es obligatorio.");
-        var correo = d.Correo.Trim().ToLowerInvariant();
-        if (await db.Usuarios.AnyAsync(u => u.Correo.ToLower() == correo, ct))
-            throw new InvalidOperationException("Ya existe una persona con ese correo.");
-        var u = new Usuario { Nombre = d.Nombre.Trim(), Correo = correo };
-        db.Usuarios.Add(u); await db.SaveChangesAsync(ct);
-        return StatusCode(201, new UsuarioDto(u.Id, u.Nombre, u.Correo));
+        _userManager = userManager;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Listar(
+        CancellationToken ct)
+    {
+        var usuarios = await _userManager.Users
+            .AsNoTracking()
+            .OrderBy(u => u.Nombre)
+            .Select(u => new UsuarioDto(
+                u.Id,
+                u.Nombre,
+                u.Email ?? string.Empty))
+            .ToArrayAsync(ct);
+
+        return Ok(usuarios);
     }
 }

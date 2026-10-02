@@ -1,27 +1,28 @@
 using CampusFix.Api.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampusFix.Api.Data;
 
-public class CampusFixDbContext : DbContext
+public class CampusFixDbContext
+    : IdentityDbContext<Usuario, IdentityRole<int>, int>
 {
     public CampusFixDbContext(DbContextOptions<CampusFixDbContext> options)
         : base(options)
     {
     }
 
-    public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Reporte> Reportes => Set<Reporte>();
+
     public DbSet<HistorialEstado> HistorialEstados => Set<HistorialEstado>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Usuario>()
-            .HasIndex(u => u.Correo)
-            .IsUnique();
-
+        // Relación entre Usuario y Reporte.
+        // Un usuario puede tener varios reportes.
         modelBuilder.Entity<Reporte>()
             .HasOne(r => r.ReportadoPor)
             .WithMany(u => u.Reportes)
@@ -34,6 +35,7 @@ public class CampusFixDbContext : DbContext
         modelBuilder.Entity<Reporte>()
             .HasQueryFilter(r => !r.Eliminado);
 
+        // Relación entre Reporte e HistorialEstado.
         modelBuilder.Entity<HistorialEstado>()
             .HasOne(h => h.Reporte)
             .WithMany(r => r.HistorialEstados)
